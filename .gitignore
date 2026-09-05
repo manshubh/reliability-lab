@@ -1,0 +1,27 @@
+# Run evidence, local run history and the built site (published from CI, never committed)
+/evidence/
+/history/
+/site/_build/
+
+# Local cluster credentials
+kubeconfig
+*.kubeconfig
+
+# Go
+/bin/
+*.test
+coverage.out
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
