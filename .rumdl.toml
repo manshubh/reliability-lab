@@ -1,0 +1,6 @@
+# Markdown lint settings (rumdl implements the markdownlint rules).
+
+[global]
+# Prose is written one paragraph per line, so a line-length limit would only
+# force awkward wrapping. Editors wrap for display.
+disable = ["MD013"]

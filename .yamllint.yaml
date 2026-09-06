@@ -1,0 +1,20 @@
+# yamllint settings for every YAML file in the repo (run with --strict, so
+# warnings fail too).
+extends: default
+
+rules:
+  # Kubernetes and GitHub files rarely start with "---"; requiring it is noise.
+  document-start: disable
+  line-length:
+    max: 120
+    allow-non-breakable-words: true
+    allow-non-breakable-inline-mappings: true
+  truthy:
+    allowed-values: ["true", "false"]
+    # GitHub workflows use `on:` as a key, which YAML 1.1 reads as a boolean.
+    check-keys: false
+  comments:
+    min-spaces-from-content: 1
+  indentation:
+    spaces: 2
+    indent-sequences: consistent
