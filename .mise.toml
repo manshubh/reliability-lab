@@ -1,0 +1,30 @@
+# Every command-line tool this repository uses, at an exact version.
+# `make tools` installs them. mise.lock records each tool's download URL and
+# checksum for every platform we run on, and CI installs from the same files.
+# Tools arrive here with the first change that needs them.
+
+[tools]
+# Languages
+go = "1.27.1"
+python = "3.14.6"
+uv = "0.12.9"
+
+# Linters
+golangci-lint = "2.13.2"
+shellcheck = "0.11.0"
+actionlint = "1.7.12"
+zizmor = "1.30.0"
+rumdl = "0.2.64"
+# Straight from its GitHub releases: from 4.0 the project ships one macOS
+# binary for both architectures, which the default registry entry predates.
+"github:editorconfig-checker/editorconfig-checker" = "4.0.1"
+lychee = "0.24.2"
+
+# Git hooks runner (optional; see README "Contributing")
+prek = "0.5.2"
+
+[settings]
+# Install exactly what mise.lock records, and fail when a tool is missing
+# from it, rather than resolving something new.
+locked = true
+lockfile_platforms = ["macos-arm64", "linux-x64", "linux-arm64"]
