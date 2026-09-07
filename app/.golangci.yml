@@ -1,0 +1,28 @@
+# golangci-lint settings for the Go module.
+version: "2"
+
+linters:
+  # errcheck, govet, ineffassign, staticcheck and unused.
+  default: standard
+  enable:
+    # HTTP clients must close response bodies, or connections leak.
+    - bodyclose
+    # Outbound requests must carry a context, so timeouts can cancel them.
+    - noctx
+    # Compare and unwrap errors with errors.Is/As, which survive wrapping.
+    - errorlint
+    # Returning nil after checking err != nil is almost always a bug.
+    - nilerr
+    - misspell
+    - unconvert
+    - usestdlibvars
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      # Keep this module's own imports in their own group.
+      local-prefixes:
+        - reliability-lab/app
