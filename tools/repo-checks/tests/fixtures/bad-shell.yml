@@ -1,0 +1,10 @@
+# A run step that does the work itself instead of calling make.
+name: bad-shell
+on: pull_request
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Lint
+        run: yamllint .

@@ -1,0 +1,44 @@
+# One uv workspace for every Python tool in the repo: one lockfile, one
+# virtual environment, and shared lint settings. The root is "virtual" (it has
+# no [project] of its own); each tool is a member in its own folder.
+
+[tool.uv.workspace]
+members = ["repo-checks"]
+
+[tool.uv]
+# Every member is installed into the shared environment, so `uv run` can
+# reach every tool's command and tests from here.
+package = false
+
+# Lint and test tools, pinned by uv.lock like everything else. yamllint lives
+# here too, so its own dependencies are hash-locked along with it.
+[dependency-groups]
+dev = [
+  "mypy>=1.18",
+  "pytest>=8.4",
+  "ruff>=0.14",
+  "types-pyyaml>=6.0",
+  "yamllint>=1.37",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, isort, bugbear, pyupgrade, simplify, and a few
+# correctness rules: enough to catch real mistakes without style debates.
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF", "PT"]
+
+[tool.ruff.lint.isort]
+# Each tool's package, so imports group as standard library, third party, ours.
+known-first-party = ["repo_checks"]
+
+[tool.mypy]
+strict = true
+python_version = "3.14"
+files = ["repo-checks/src", "repo-checks/tests"]
+
+[tool.pytest.ini_options]
+addopts = ["--strict-markers", "--import-mode=importlib"]
+testpaths = ["repo-checks/tests"]

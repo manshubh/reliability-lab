@@ -1,0 +1,13 @@
+[project]
+name = "repo-checks"
+version = "0.1.0"
+description = "Checks that keep the repository's own rules, such as workflows that only call make."
+requires-python = ">=3.14,<3.15"
+dependencies = ["pyyaml>=6.0"]
+
+[project.scripts]
+repo-checks = "repo_checks.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"

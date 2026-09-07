@@ -1,0 +1,19 @@
+# Every kind of step the rule allows.
+name: good
+on: pull_request
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run checks
+        run: make pr
+      - name: Block scalar with one make call
+        run: |
+          make gameday GROUP=app-faults
+      - name: Value from GitHub passed through env
+        env:
+          GROUP: ${{ matrix.group }}
+        run: make gameday
+  reusable:
+    uses: ./.github/workflows/other.yml

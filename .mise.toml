@@ -9,7 +9,7 @@ go = "1.27.1"
 python = "3.14.6"
 uv = "0.12.9"
 
-# Linters
+# Linters (the Python ones, ruff, mypy and yamllint, are pinned in tools/uv.lock)
 golangci-lint = "2.13.2"
 shellcheck = "0.11.0"
 actionlint = "1.7.12"

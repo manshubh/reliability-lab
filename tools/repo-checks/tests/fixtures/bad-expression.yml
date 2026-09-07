@@ -1,0 +1,8 @@
+# A GitHub expression inside the shell command.
+name: bad-expression
+on: pull_request
+jobs:
+  gameday:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: make gameday GROUP=${{ matrix.group }}

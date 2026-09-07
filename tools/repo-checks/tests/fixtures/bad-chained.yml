@@ -1,0 +1,8 @@
+# Two make calls in one step hide logic in the workflow.
+name: bad-chained
+on: pull_request
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: make lint && make test
