@@ -1,0 +1,57 @@
+# Fast checks on the files in each commit. Optional: install the hook with
+# `prek install` (or `pre-commit install`). `make pr` runs everything anyway.
+#
+# Every hook calls a tool pinned in .mise.toml through `mise exec`, so tool
+# versions live in one place and match CI.
+repos:
+  - repo: local
+    hooks:
+      - id: yamllint
+        name: yamllint
+        entry: mise exec -- uv run --project tools --locked yamllint --strict
+        language: system
+        types: [yaml]
+
+      - id: rumdl
+        name: markdown lint
+        entry: mise exec -- rumdl check
+        language: system
+        types: [markdown]
+
+      - id: shellcheck
+        name: shellcheck
+        entry: mise exec -- shellcheck
+        language: system
+        types: [shell]
+
+      - id: gofmt
+        name: gofmt
+        # gofmt -l lists unformatted files but exits 0, so turn a list into a failure.
+        entry: bash -c 'out=$(mise exec -- gofmt -l "$@"); [ -z "$out" ] || { echo "$out"; exit 1; }' --
+        language: system
+        types: [go]
+
+      - id: ruff-check
+        name: ruff check
+        entry: mise exec -- uv run --project tools --locked ruff check
+        language: system
+        types: [python]
+
+      - id: ruff-format
+        name: ruff format
+        entry: mise exec -- uv run --project tools --locked ruff format --check
+        language: system
+        types: [python]
+
+      - id: actionlint
+        name: actionlint
+        entry: mise exec -- actionlint
+        language: system
+        files: ^\.github/workflows/
+
+      - id: editorconfig
+        name: editorconfig
+        entry: mise exec -- editorconfig-checker
+        language: system
+        types: [text]
+        exclude: ^LICENSE$
