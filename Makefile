@@ -23,7 +23,10 @@ PY := cd tools && uv run --locked
 
 # Files that belong to the repository: tracked ones, plus new ones that aren't
 # ignored. Linters look only at these, never at ignored or local-only files.
-repo_files = git ls-files --cached --others --exclude-standard -- $(1)
+# A tracked file deleted from the working tree stays in the index until the
+# deletion is staged; it has nothing left to lint, so it is skipped.
+repo_files = git ls-files --cached --others --exclude-standard -- $(1) | \
+	while read -r f; do if [ -e "$$f" ]; then echo "$$f"; fi; done
 
 # Run command $(3) on the repository files matching $(2), or say there are
 # none. $(1) labels the message.
@@ -45,6 +48,22 @@ tools: ## Install the pinned tools and the Python environment
 	mise install
 	# The PATH above was computed before this install, so go through mise.
 	cd tools && mise exec -- uv sync --locked
+
+# Targets that run pinned tools depend on this check. Without it, a fresh
+# clone fails halfway through with "command not found": mise won't read a
+# .mise.toml it hasn't been told to trust, and the PATH line above hides why.
+# `make tools` fixes both cases, because `mise install` trusts the config it
+# installs from.
+.PHONY: require-tools
+require-tools:
+	@command -v mise >/dev/null || { echo "Install mise first: https://mise.jdx.dev" >&2; exit 1; }
+	@missing=$$(mise ls --current --missing 2>/dev/null) || \
+		{ echo "mise can't read .mise.toml yet. Run 'make tools' first." >&2; exit 1; }; \
+	if [ -n "$$missing" ]; then \
+		echo "Pinned tools are missing. Run 'make tools' first. Missing:" >&2; \
+		echo "$$missing" | awk '{ print "  " $$1 " " $$2 }' >&2; \
+		exit 1; \
+	fi
 
 ##@ Checks (each linter also runs alone, for example `make lint-go`)
 
@@ -94,6 +113,11 @@ test-python:
 # Workflows may only call make targets: that is what keeps `make pr` honest.
 test-workflows:
 	$(PY) repo-checks workflows ../.github/workflows
+
+# Each check needs the pinned tools, whether it runs alone or as part of
+# `make lint`. Make runs require-tools once per invocation, not once per check.
+lint-yaml lint-markdown lint-links lint-shell lint-workflows lint-editorconfig \
+	lint-go lint-python test-go test-python test-workflows: | require-tools
 
 .PHONY: pr
 pr: lint test ## Run exactly what the pull request check runs
