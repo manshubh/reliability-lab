@@ -20,6 +20,12 @@ rumdl = "0.2.64"
 "github:editorconfig-checker/editorconfig-checker" = "4.0.1"
 lychee = "0.24.2"
 
+# Cluster. kind is bumped together with the node image in
+# platform/versions.yaml: each kind release supports the node images built for
+# it. kubectl matches the cluster's Kubernetes version exactly.
+kind = "0.33.0"
+kubectl = "1.36.4"
+
 # Git hooks runner (optional; see README "Contributing")
 prek = "0.5.2"
 
