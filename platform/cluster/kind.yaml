@@ -1,0 +1,46 @@
+# The lab cluster: one control plane and three workers, one worker per zone.
+#
+# up.sh creates it from this file. The node image (the Kubernetes version) is
+# not set here: up.sh passes the one pinned in platform/versions.yaml. up.sh
+# also swaps in other host ports when LAB_GATEWAY_PORT or LAB_GRAFANA_PORT is
+# set, so the defaults below must stay in step with the ones in up.sh.
+#
+# There are no containerdConfigPatches. kind's node images run containerd 2,
+# which reads per-registry settings from /etc/containerd/certs.d when its
+# config sets no registry options of its own (config_path is left empty, and
+# that directory is the default). up.sh writes the local registry's
+# hosts.toml there.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  # Experiments stop workers and whole zones, never the control plane, so the
+  # ports into the cluster live here. Like a cloud load balancer that spans
+  # zones, the front door survives the loss of any worker or zone. kube-proxy
+  # forwards traffic that arrives here to pods on the workers, which is why
+  # the Services behind these NodePorts must keep externalTrafficPolicy:
+  # Cluster (Local would drop traffic, as no pods run on this node).
+  - role: control-plane
+    # Port mappings can only be set when a cluster is created, so a port is
+    # reserved here for each part that will need one, even before it exists.
+    # Each listens on 127.0.0.1 only: Docker publishes a port on every
+    # interface by default, and OrbStack then exposes it to the local network.
+    extraPortMappings:
+      # The gateway's NodePort: http://localhost:8080
+      - containerPort: 30080
+        hostPort: 8080
+        listenAddress: 127.0.0.1
+      # Grafana's NodePort: http://localhost:3000
+      - containerPort: 30300
+        hostPort: 3000
+        listenAddress: 127.0.0.1
+  # The zone label is the standard one that topology spread constraints and
+  # zone-aware routing look at.
+  - role: worker
+    labels:
+      topology.kubernetes.io/zone: a
+  - role: worker
+    labels:
+      topology.kubernetes.io/zone: b
+  - role: worker
+    labels:
+      topology.kubernetes.io/zone: c

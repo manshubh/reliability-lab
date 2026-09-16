@@ -1,0 +1,19 @@
+# Pinned versions that are neither mise tools (.mise.toml) nor Helm charts.
+#
+# Scripts read this file with a one-line awk (`pin` in
+# platform/cluster/common.sh), so it stays a flat map: one `key: value` line
+# per entry, no quotes, no nesting. Images are pinned by digest, because a tag
+# can be moved to other content and a digest can't.
+
+# Kubernetes node image for kind. Bump it together with kind in .mise.toml:
+# each kind release lists, in its release notes, the node images built for it,
+# and only those are supported. Copy the tag and digest for the Kubernetes
+# version you want from there, and move kubectl in .mise.toml to match.
+kind_node_image: kindest/node:v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd16290d7c895f2b7ea312e3cbfaed
+
+# Local image registry (CNCF Distribution). This is the project's own image,
+# built once when a release is cut. Docker Hub's official `registry` image is
+# rebuilt from time to time under the same tag, which changes its digest. Bump
+# with the tag of a new release and the digest of its multi-arch index:
+#   docker buildx imagetools inspect ghcr.io/distribution/distribution:<tag>
+registry_image: ghcr.io/distribution/distribution:3.1.1@sha256:bca24727f4002e51f959c18c42e816e4d1078198081a9837e16b8b7d7e43ebf8
