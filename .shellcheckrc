@@ -1,0 +1,5 @@
+# Follow the files a script sources, looking next to the script, so it is
+# checked together with its helpers even when it is checked on its own (the
+# pre-commit hook and editors pass one file at a time).
+external-sources=true
+source-path=SCRIPTDIR

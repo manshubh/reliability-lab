@@ -2,7 +2,7 @@
 
 A small production-like system that breaks itself on purpose, recovers, and publishes what happened.
 
-> **Under construction.** For now, only the repository checks run. This README grows as each part lands.
+> **Under construction.** For now, the repository checks and the local cluster work. This README grows as each part lands.
 
 ## What it will do
 
@@ -64,6 +64,18 @@ make tools   # install the pinned tools
 make help    # list every target
 make pr      # run the same checks as a pull request
 ```
+
+To run the local cluster (one control plane and three workers, one per zone, plus an image registry):
+
+```sh
+make up                                            # create it, or repair it; safe to run again
+kubectl get nodes -L topology.kubernetes.io/zone   # every node Ready, workers in zones a, b and c
+make down                                          # delete everything make up created
+```
+
+`make up` sets kubectl's current context to `kind-lab`. If mise isn't activated in your shell, run the pinned kubectl as `mise exec -- kubectl`.
+
+The cluster listens on 127.0.0.1 only: port 8080 for the gateway, 3000 for Grafana and 5001 for the image registry. If 8080 or 3000 is taken, pick other ports when you create the cluster, for example `LAB_GATEWAY_PORT=18080 LAB_GRAFANA_PORT=13000 make up`.
 
 ## Contributing
 
