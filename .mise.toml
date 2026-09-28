@@ -25,6 +25,14 @@ lychee = "0.24.2"
 # it. kubectl matches the cluster's Kubernetes version exactly.
 kind = "0.33.0"
 kubectl = "1.36.4"
+# Helm 4 is the current major. helmfile 1.8.0 recommends Helm 4.3.0 and the
+# helm-diff plugin 3.15.13 (the versions `helmfile init` installs), so bump
+# the three together. mise doesn't install Helm plugins: `make tools` adds
+# helm-diff, which is pinned in platform/versions.yaml. helmfile names its
+# backend: newer mise releases default to a different one, and naming it
+# keeps every mise version on the same entry in mise.lock.
+helm = "4.3.0"
+"aqua:helmfile/helmfile" = "1.8.0"
 
 # Git hooks runner (optional; see README "Contributing")
 prek = "0.5.2"

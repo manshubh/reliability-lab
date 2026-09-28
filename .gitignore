@@ -3,6 +3,9 @@
 /history/
 /site/_build/
 
+# Downloads, and Helm's and helmfile's state (see the Makefile)
+/.cache/
+
 # Local cluster credentials
 kubeconfig
 *.kubeconfig

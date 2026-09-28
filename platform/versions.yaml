@@ -17,3 +17,10 @@ kind_node_image: kindest/node:v1.36.4@sha256:099e049362a1526b2db71494e1947aae99b
 # with the tag of a new release and the digest of its multi-arch index:
 #   docker buildx imagetools inspect ghcr.io/distribution/distribution:<tag>
 registry_image: ghcr.io/distribution/distribution:3.1.1@sha256:bca24727f4002e51f959c18c42e816e4d1078198081a9837e16b8b7d7e43ebf8
+
+# helm-diff, the Helm plugin helmfile uses to work out what an apply would
+# change. `make tools` installs it from the project's GitHub release and checks
+# the release's signature against platform/helm/helm-diff-release-key.asc. Bump
+# it with helmfile (.mise.toml), to the version that helmfile recommends
+# (HelmDiffRecommendedVersion in its pkg/app/init.go).
+helm_diff_version: 3.15.13

@@ -1,8 +1,8 @@
 # shellcheck shell=bash
-# Shared by up.sh and down.sh: the names of what the lab creates, and a few
+# Shared by the lab's scripts: the names of what the lab creates, and a few
 # small helpers. Sourced, not run.
 #
-# Both scripts run on macOS's bash 3.2 as well as on Linux's bash 5, so they
+# The scripts run on macOS's bash 3.2 as well as on Linux's bash 5, so they
 # stick to features the older one has.
 
 # The names are used by the scripts that source this file, not here.
@@ -24,10 +24,26 @@ NETWORK=kind
 
 # The repository root, so the scripts work from any directory.
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+# Downloads are kept here, ignored by git, so a second run doesn't fetch them
+# again. The Makefile puts Helm's and helmfile's state here too.
+DOWNLOADS=$ROOT/.cache/downloads
 
 die() {
   echo "error: $*" >&2
   exit 1
+}
+
+# download URL FILE: fetch URL into FILE. A failed or interrupted download
+# never leaves a partial FILE behind, and the next run resumes it.
+download() {
+  local progress=--silent
+  # A progress bar for people; logs get only errors.
+  if [ -t 2 ]; then progress=--progress-bar; fi
+  echo "    downloading $1"
+  mkdir -p "$(dirname "$2")"
+  curl --fail --location --retry 3 --continue-at - "$progress" --show-error \
+    --output "$2.part" "$1" || die "couldn't download $1. Check your connection and run this again."
+  mv "$2.part" "$2"
 }
 
 # pin KEY: print the value of KEY from platform/versions.yaml, or fail.

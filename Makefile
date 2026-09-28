@@ -17,6 +17,19 @@ export PATH := $(shell mise bin-paths 2>/dev/null | tr '\n' ':')$(PATH)
 # uv must use the Python that mise installed, never download its own.
 export UV_PYTHON_DOWNLOADS := never
 
+# Helm and helmfile keep all their state (repositories, registry logins,
+# caches, plugins) in .cache/, which git ignores, rather than in your home
+# directory. Your own Helm setup can't change what the lab installs, and the
+# lab leaves nothing behind outside the repository.
+CACHE := $(CURDIR)/.cache
+export HELM_CONFIG_HOME := $(CACHE)/helm/config
+export HELM_CACHE_HOME := $(CACHE)/helm/cache
+export HELM_DATA_HOME := $(CACHE)/helm/data
+# Helm 4.3.0 installs plugins into $HELM_DATA_HOME/plugins whatever
+# HELM_PLUGINS says, but loads them from HELM_PLUGINS, so the two must match.
+export HELM_PLUGINS := $(HELM_DATA_HOME)/plugins
+export HELMFILE_CACHE_HOME := $(CACHE)/helmfile
+
 # Python commands run from tools/, where the uv workspace and its settings
 # live. --locked fails when uv.lock is out of date instead of re-resolving.
 PY := cd tools && uv run --locked
@@ -43,11 +56,12 @@ help: ## Show this help
 	@echo
 
 .PHONY: tools
-tools: ## Install the pinned tools and the Python environment
+tools: ## Install the pinned tools, the Helm plugin and the Python environment
 	@command -v mise >/dev/null || { echo "Install mise first: https://mise.jdx.dev" >&2; exit 1; }
 	mise install
 	# The PATH above was computed before this install, so go through mise.
 	cd tools && mise exec -- uv sync --locked
+	mise exec -- platform/helm/diff-plugin.sh install
 
 # Targets that run pinned tools depend on this check. Without it, a fresh
 # clone fails halfway through with "command not found": mise won't read a
@@ -64,6 +78,13 @@ require-tools:
 		echo "$$missing" | awk '{ print "  " $$1 " " $$2 }' >&2; \
 		exit 1; \
 	fi
+
+# The lab also needs the helm-diff plugin, which `make tools` installs. The
+# pull request check doesn't, and CI installs the tools without `make tools`,
+# which is why this check is separate from require-tools.
+.PHONY: require-helm-diff
+require-helm-diff: | require-tools
+	@platform/helm/diff-plugin.sh check
 
 ##@ Checks (each linter also runs alone, for example `make lint-go`)
 
@@ -126,7 +147,7 @@ pr: lint test ## Run exactly what the pull request check runs
 
 # up brings whatever exists to the desired state, so it is safe to run again.
 .PHONY: up down
-up: | require-tools ## Create the cluster and its local registry (LAB_GATEWAY_PORT, LAB_GRAFANA_PORT)
+up: | require-tools require-helm-diff ## Create the cluster and its local registry (LAB_GATEWAY_PORT, LAB_GRAFANA_PORT)
 	@platform/cluster/up.sh
 
 # No require-tools here: cleanup must work even when the tools are missing,
