@@ -24,3 +24,13 @@ registry_image: ghcr.io/distribution/distribution:3.1.1@sha256:bca24727f4002e51f
 # it with helmfile (.mise.toml), to the version that helmfile recommends
 # (HelmDiffRecommendedVersion in its pkg/app/init.go).
 helm_diff_version: 3.15.13
+
+# Gateway API CRDs, Standard channel: the upstream standard-install.yaml from
+# this release, checked against the SHA-256 below before anything is applied.
+# v1.6.1 is the version Traefik v3.7.13, the gateway, is built against
+# (sigs.k8s.io/gateway-api in its go.mod), so bump the two together. For a new
+# version, take the checksum from the file's digest on the release page, or:
+#   curl -fsSLO https://github.com/kubernetes-sigs/gateway-api/releases/download/<version>/standard-install.yaml
+#   shasum -a 256 standard-install.yaml
+gateway_api_version: v1.6.1
+gateway_api_sha256: 24d931f22abd8e40c973264319ead7cfa09d0fb7716b7ab1ee2ff174cb063a73

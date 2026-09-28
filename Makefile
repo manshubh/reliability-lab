@@ -147,8 +147,9 @@ pr: lint test ## Run exactly what the pull request check runs
 
 # up brings whatever exists to the desired state, so it is safe to run again.
 .PHONY: up down
-up: | require-tools require-helm-diff ## Create the cluster and its local registry (LAB_GATEWAY_PORT, LAB_GRAFANA_PORT)
+up: | require-tools require-helm-diff ## Create the cluster, its local registry and the gateway (LAB_GATEWAY_PORT, LAB_GRAFANA_PORT)
 	@platform/cluster/up.sh
+	@platform/gateway/up.sh
 
 # No require-tools here: cleanup must work even when the tools are missing,
 # and the script copes with whatever is or isn't installed.

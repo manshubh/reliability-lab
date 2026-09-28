@@ -46,6 +46,11 @@ download() {
   mv "$2.part" "$2"
 }
 
+# sha256 FILE: print FILE's SHA-256. shasum ships with macOS and Ubuntu alike.
+sha256() {
+  shasum -a 256 "$1" | awk '{ print $1 }'
+}
+
 # pin KEY: print the value of KEY from platform/versions.yaml, or fail.
 pin() {
   local value
