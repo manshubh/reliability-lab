@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Bring the lab's front door to the desired state on the running cluster. So
-# far, that is the Gateway API CRDs, which the gateway is built on. Each step
-# changes only what differs, so it is safe to run again at any time.
+# Bring the lab's front door to the desired state on the running cluster: the
+# Gateway API CRDs, Traefik as their implementation, and the lab Gateway.
+# Each step changes only what differs, so it is safe to run again at any time.
 #
 # `make up` runs it after platform/cluster/up.sh, with the pinned tools first
 # on PATH and Helm's directories inside the repository.
@@ -10,6 +10,7 @@ set -euo pipefail
 # shellcheck source=../cluster/common.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../cluster/common.sh"
 
+GATEWAY_DIR=$ROOT/platform/gateway
 # One field manager for every server-side apply, run after run. The CRD file
 # also holds a ValidatingAdmissionPolicy, and a second manager setting the
 # same fields would conflict with the first.
@@ -40,9 +41,10 @@ apply_files() {
 
 preflight() {
   local tool
-  for tool in kubectl curl shasum; do
+  for tool in kubectl helm helmfile curl shasum; do
     command -v "$tool" >/dev/null || die "$tool isn't on PATH. Run this through 'make up'."
   done
+  [ -n "${HELM_PLUGINS:-}" ] || die "HELM_PLUGINS isn't set. Run this through 'make up'."
   kubectl --context "$CONTEXT" get --raw /readyz >/dev/null 2>&1 ||
     die "the cluster doesn't answer on context $CONTEXT. Run 'make up'."
   echo "    cluster reachable on context $CONTEXT"
@@ -82,6 +84,29 @@ install_gateway_api() {
     crd/httproutes.gateway.networking.k8s.io >/dev/null
 }
 
+# The gateway namespace, our GatewayClass and the lab Gateway. They go in
+# before Traefik, whose release lives in that namespace.
+apply_gateway() {
+  apply_files "$GATEWAY_DIR/gateway.yaml"
+}
+
+# helm-diff tells helmfile whether the release would change, so an unchanged
+# release is left alone: no upgrade, no new revision. The waits below allow
+# for image pulls, which take minutes on a slow link.
+install_traefik() {
+  helmfile --file "$ROOT/platform/helmfile.yaml" apply
+  kubectl --context "$CONTEXT" --namespace gateway rollout status deployment/traefik --timeout=300s
+}
+
+# Programmed means Traefik has taken on the Gateway and serves its listener.
+wait_for_gateway() {
+  kubectl --context "$CONTEXT" --namespace gateway wait --for=condition=Programmed \
+    gateway/lab --timeout=120s
+}
+
 step "check prerequisites" preflight
 step "install the Gateway API CRDs" install_gateway_api
+step "apply the Gateway" apply_gateway
+step "install Traefik" install_traefik
+step "wait for the Gateway" wait_for_gateway
 summary

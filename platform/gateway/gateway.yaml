@@ -1,0 +1,39 @@
+# The lab's front door: the GatewayClass that hands Gateways to Traefik, and
+# the one Gateway that every journey's HTTPRoute attaches to. The chart can
+# create both, but they are kept here as plain Gateway API manifests rather
+# than chart values, so they read and change without knowing the chart.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gateway
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: traefik
+spec:
+  # Traefik's Kubernetes Gateway provider takes on the classes that name it.
+  controllerName: traefik.io/gateway-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: lab
+  namespace: gateway
+spec:
+  gatewayClassName: traefik
+  listeners:
+    # Traefik serves a listener on the entrypoint with the same port, so 8000
+    # means the chart's `web` entrypoint: port 8000 in the pod, behind
+    # NodePort 30080 and host port 8080.
+    - name: web
+      protocol: HTTP
+      port: 8000
+      allowedRoutes:
+        # Only the services' namespace may attach routes, so nothing else in
+        # the cluster can claim a path on the front door.
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: app

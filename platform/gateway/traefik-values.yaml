@@ -1,0 +1,116 @@
+# Values for the Traefik chart (release `traefik` in platform/helmfile.yaml).
+#
+# Traefik is the lab's front door, and only a Gateway API implementation: it
+# serves the Gateway and HTTPRoutes in platform/gateway/ and nothing else.
+# Every user request passes through it, so its metrics are where the SLOs are
+# measured. Each setting below is a choice made for the lab, and says why; a
+# few restate a default, so the choice is visible here.
+
+image:
+  registry: docker.io
+  repository: traefik
+  # The tag, then the digest of its multi-arch index, so the image can't
+  # change under the tag. The chart reads the part before "@" to know which
+  # Traefik version it configures. To bump:
+  #   docker buildx imagetools inspect docker.io/traefik:<tag>
+  tag: v3.7.13@sha256:24841fe2de7304c149343d877d2923b4c8800a38ba015dea9174c23b20e344a0
+
+global:
+  # No calls home: the lab must behave the same with or without internet.
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+# An experiment drains or stops a worker node and expects every journey to
+# stay within its SLO, so the front door must survive losing any one node:
+# two replicas, in different zones, and never both evicted at once.
+deployment:
+  replicas: 2
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: DoNotSchedule
+    # The chart's pod labels: its name, and the release name plus namespace.
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: traefik
+        app.kubernetes.io/instance: traefik-gateway
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+providers:
+  # Routing comes from Gateway API resources only. Traefik's own CRDs
+  # (IngressRoute and friends) and Ingress objects are ignored.
+  kubernetesGateway:
+    enabled: true
+  kubernetesCRD:
+    enabled: false
+  kubernetesIngress:
+    enabled: false
+
+# The GatewayClass and the Gateway are ours, in gateway.yaml.
+gateway:
+  enabled: false
+gatewayClass:
+  enabled: false
+# The chart adds a default IngressClass even with the Ingress provider off.
+ingressClass:
+  enabled: false
+# No API or dashboard: nothing in the lab reads them, and each would be one
+# more thing listening.
+api: null
+
+service:
+  spec:
+    # kind maps host port 8080 to this NodePort on the control plane (see
+    # platform/cluster/kind.yaml). Cluster, not Local: Traefik never runs on
+    # the control plane, so Local would drop every request.
+    type: NodePort
+    externalTrafficPolicy: Cluster
+
+# The entrypoints keep the chart's ports: web 8000, websecure 8443 and
+# metrics 9100. The Service exposes only web. Metrics stay on the pods, which
+# are scraped one by one, since each counts only the requests it served.
+ports:
+  web:
+    nodePort: 30080
+  # HTTP only, for now.
+  websecure:
+    expose:
+      default: false
+
+metrics:
+  prometheus:
+    # Per-router series, off by default. Each journey has its own HTTPRoute,
+    # and so its own router, which is what lets an SLO be measured per journey.
+    addRoutersLabels: true
+    # Already Traefik's defaults; stated because the dashboards rely on them.
+    addEntryPointsLabels: true
+    addServicesLabels: true
+    # The default buckets (0.1, 0.3, 1.2 and 5 s) can't tell 250 ms from
+    # 300 ms. The SLO thresholds, 250 ms and 500 ms, must be bucket edges.
+    buckets: "0.005,0.01,0.025,0.05,0.1,0.25,0.5,1,2.5,5,10"
+
+additionalArguments:
+  # A backstop for hung backends: Traefik has no default timeout towards
+  # them, and it records a request only once the response is complete, so a
+  # request that never ends would never reach the SLI. After 15 s (Envoy's
+  # default route timeout) Traefik answers 504, which is counted. The services
+  # keep their own, shorter timeouts; this one only catches what they miss.
+  - "--serversTransport.forwardingTimeouts.responseHeaderTimeout=15s"
+# No retries anywhere, on purpose: with retries at the gateway and in the
+# services, a slow dependency would receive several times the load.
+
+# Measured on the lab cluster (the kubelet's working set): 28-45 MiB per pod,
+# idle and while the two pods served 430-460 requests a second between them,
+# with up to 45m of CPU each under that load. The requests cover that with
+# room to spare. The chart sets GOMEMLIMIT to 90% of the memory limit, so Go
+# collects garbage harder before the limit is reached. No CPU limit:
+# throttling would add latency at the gateway, which is where the SLOs are
+# measured.
+resources:
+  requests:
+    cpu: 100m
+    memory: 64Mi
+  limits:
+    memory: 128Mi

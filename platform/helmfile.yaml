@@ -1,0 +1,27 @@
+# The Helm releases the lab installs. `make up` runs `helmfile apply`, which
+# compares each release with the cluster (through the helm-diff plugin) and
+# upgrades only those that would change, so running it again does nothing.
+#
+# Chart versions are pinned here. Each release's values file pins the images.
+helmDefaults:
+  # Never act on whichever cluster happens to be kubectl's current context.
+  kubeContext: kind-lab
+  # make up creates the namespaces, from the manifests next to each values
+  # file, so a typo here fails instead of creating a stray namespace.
+  createNamespace: false
+  # Leave out the CRDs that charts ship. make up applies the Gateway API CRDs
+  # itself, and Traefik's own (traefik.io) aren't used.
+  skipCRDs: true
+  # A chart's notes are written for people installing it by hand; the
+  # Traefik chart's tell you to apply other Gateway API CRDs than ours.
+  syncArgs:
+    - --hide-notes
+
+releases:
+  # The gateway: Traefik as the Gateway API implementation.
+  - name: traefik
+    namespace: gateway
+    chart: oci://ghcr.io/traefik/helm/traefik
+    version: 41.6.0
+    values:
+      - gateway/traefik-values.yaml
