@@ -1,0 +1,79 @@
+# One HTTPRoute per user journey, all on the lab Gateway's `web` listener.
+#
+# Why one route per journey rather than one route with a rule each: Traefik
+# names the router it builds for a rule
+#   httproute-<namespace>-<route>-gw-<gateway ns>-<gateway>-ep-<entrypoint>-<rule index>-<hash of the match>
+# and that name is the `router` label on its metrics. It ignores rule names,
+# and the index and hash change whenever rules are added or edited. The route
+# name is the only stable part, so it is the journey's name in every SLO query.
+#
+# The routes add no filters, retries or timeouts: the request goes to the
+# service as it came, and the services own their timeouts.
+#
+# A PathPrefix matches whole path segments and ignores a trailing slash, so
+# view-order's /orders/ also matches GET /orders. That is how the Gateway API
+# defines it. A method no journey uses, such as PUT /orders, gets a 404.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: browse
+  namespace: app
+spec:
+  parentRefs:
+    - name: lab
+      namespace: gateway
+      sectionName: web
+  rules:
+    - matches:
+        - method: GET
+          path:
+            type: PathPrefix
+            value: /catalog
+      backendRefs:
+        - name: api
+          port: 8080
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: place-order
+  namespace: app
+spec:
+  parentRefs:
+    - name: lab
+      namespace: gateway
+      sectionName: web
+  rules:
+    - matches:
+        - method: POST
+          path:
+            type: Exact
+            value: /orders
+      backendRefs:
+        - name: api
+          port: 8080
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: view-order
+  namespace: app
+spec:
+  parentRefs:
+    - name: lab
+      namespace: gateway
+      sectionName: web
+  rules:
+    - matches:
+        - method: GET
+          path:
+            type: PathPrefix
+            value: /orders/
+      backendRefs:
+        - name: api
+          port: 8080

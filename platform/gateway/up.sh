@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Bring the lab's front door to the desired state on the running cluster: the
-# Gateway API CRDs, Traefik as their implementation, and the lab Gateway.
-# Each step changes only what differs, so it is safe to run again at any time.
+# Gateway API CRDs, Traefik as their implementation, the lab Gateway, and one
+# HTTPRoute per user journey in front of a stand-in api. Each step changes
+# only what differs, so it is safe to run again at any time.
 #
 # `make up` runs it after platform/cluster/up.sh, with the pinned tools first
 # on PATH and Helm's directories inside the repository.
@@ -41,7 +42,7 @@ apply_files() {
 
 preflight() {
   local tool
-  for tool in kubectl helm helmfile curl shasum; do
+  for tool in docker kubectl helm helmfile curl shasum; do
     command -v "$tool" >/dev/null || die "$tool isn't on PATH. Run this through 'make up'."
   done
   [ -n "${HELM_PLUGINS:-}" ] || die "HELM_PLUGINS isn't set. Run this through 'make up'."
@@ -104,9 +105,39 @@ wait_for_gateway() {
     gateway/lab --timeout=120s
 }
 
+# One HTTPRoute per journey, their namespace, and the stand-in api they
+# send requests to.
+apply_routes() {
+  apply_files "$GATEWAY_DIR/routes.yaml" "$GATEWAY_DIR/stand-in-api.yaml"
+}
+
+# A route is in service once the Gateway has accepted it (Accepted) and its
+# backend Service exists (ResolvedRefs).
+wait_for_routes() {
+  local condition
+  kubectl --context "$CONTEXT" --namespace app wait --for=condition=Available \
+    deployment/api --timeout=300s
+  for condition in Accepted ResolvedRefs; do
+    kubectl --context "$CONTEXT" --namespace app wait --all httproute --timeout=60s \
+      --for=jsonpath="{.status.parents[?(@.parentRef.name==\"lab\")].conditions[?(@.type==\"$condition\")].status}=True" \
+      >/dev/null
+  done
+  echo "    every route in namespace app is Accepted, with its references resolved"
+}
+
+show_gateway() {
+  local gateway
+  gateway=$(docker port "$CLUSTER-control-plane" 30080/tcp)
+  echo
+  echo "The gateway is ready on http://$gateway. Try: curl -i http://$gateway/catalog"
+}
+
 step "check prerequisites" preflight
 step "install the Gateway API CRDs" install_gateway_api
 step "apply the Gateway" apply_gateway
 step "install Traefik" install_traefik
 step "wait for the Gateway" wait_for_gateway
+step "apply the routes and the api" apply_routes
+step "wait for the api and the routes" wait_for_routes
+show_gateway
 summary
