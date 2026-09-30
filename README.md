@@ -2,7 +2,7 @@
 
 A small production-like system that breaks itself on purpose, recovers, and publishes what happened.
 
-> **Under construction.** For now, the repository checks and the local cluster work. This README grows as each part lands.
+> **Under construction.** For now, the repository checks, the local cluster and its gateway work, with a stand-in behind the gateway until the real services land. This README grows as each part lands.
 
 ## What it will do
 
@@ -65,17 +65,29 @@ make help    # list every target
 make pr      # run the same checks as a pull request
 ```
 
-To run the local cluster (one control plane and three workers, one per zone, plus an image registry):
+`make tools` also installs the Helm plugin helm-diff. Helm and helmfile keep all their state in `.cache/` in the repository, never in your home directory.
+
+To run the local cluster (one control plane and three workers, one per zone, an image registry, and the gateway):
 
 ```sh
 make up                                            # create it, or repair it; safe to run again
 kubectl get nodes -L topology.kubernetes.io/zone   # every node Ready, workers in zones a, b and c
+make smoke                                         # check every user journey through the gateway
+curl -i localhost:8080/catalog                     # one request, the way a user sends it
 make down                                          # delete everything make up created
 ```
 
 `make up` sets kubectl's current context to `kind-lab`. If mise isn't activated in your shell, run the pinned kubectl as `mise exec -- kubectl`.
 
 The cluster listens on 127.0.0.1 only: port 8080 for the gateway, 3000 for Grafana and 5001 for the image registry. If 8080 or 3000 is taken, pick other ports when you create the cluster, for example `LAB_GATEWAY_PORT=18080 LAB_GRAFANA_PORT=13000 make up`.
+
+## The front door
+
+Every request enters through one gateway: [Traefik](https://traefik.io), configured only through the Kubernetes [Gateway API](https://gateway-api.sigs.k8s.io). Its files are in `platform/gateway/`.
+
+- **Where requests go.** Port 8080 on your machine reaches a NodePort on the cluster, which forwards each request to one of two Traefik pods, in different zones, so the loss of a node doesn't close the door. Traefik sends it on to the `api` Service in namespace `app`. For now, `api` is a stand-in that answers 200 to everything.
+- **How journeys are routed.** Each user journey has its own HTTPRoute: `browse` (`GET /catalog`), `place-order` (`POST /orders`) and `view-order` (`GET /orders/<id>`). Anything else gets a 404. A `PathPrefix` match covers whole path segments and ignores a trailing slash, so `GET /orders` also matches `view-order` (`/orders/`); that is how the Gateway API defines it.
+- **Where the metrics come from.** Traefik counts and times every request it serves. The route's name is part of the `router` label of `traefik_router_requests_total` and `traefik_router_request_duration_seconds`, so each journey's SLOs are measured at the gateway, and the duration buckets include the SLO thresholds, 250 ms and 500 ms. Traefik gives up on a backend after 15 s and answers 504, so even a hung request is counted.
 
 ## Contributing
 

@@ -156,7 +156,10 @@ up: | require-tools require-helm-diff ## Create the cluster, its local registry 
 down: ## Delete the cluster and the registry; safe to run at any time
 	@platform/cluster/down.sh
 
-smoke: ## Check every user journey through the gateway
+.PHONY: smoke
+smoke: | require-tools ## Check every user journey through the gateway
+	@platform/gateway/smoke.sh
+
 images: ## Build the service images and push them to the registry
 budget: ## Record setup time and resource use
 
@@ -179,7 +182,7 @@ serve: ## Serve the built site on localhost
 
 # Targets that are planned but not built yet fail loudly, so nothing can
 # quietly depend on them.
-NOT_BUILT_YET := smoke images budget baseline plan gameday report status nightly publish issues history site serve
+NOT_BUILT_YET := images budget baseline plan gameday report status nightly publish issues history site serve
 .PHONY: $(NOT_BUILT_YET)
 $(NOT_BUILT_YET):
 	@echo "make $@: not implemented yet" >&2
